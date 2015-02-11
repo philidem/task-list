@@ -1,0 +1,29 @@
+{
+  "name": "task-list",
+  "version": "1.0.0",
+  "description": "Simple utility library for managing a list of tasks and their lifecycle.",
+  "keywords": [
+    "data",
+    "models",
+    "types",
+    "data-modeling",
+    "modeling"
+  ],
+  "homepage": "https://github.com/philidem/task-list",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/philidem/task-list.git"
+  },
+  "author": "Phil Gates-Idem <phillip.idem@gmail.com",
+  "scripts": {
+    "test": "node_modules/.bin/mocha --ui bdd --reporter spec ./test"
+  },
+  "main": "./index.js",
+  "devDependencies": {
+    "mocha": "~1.15.1",
+    "chai": "~1.8.1"
+  },
+  "dependencies": {
+    "raptor-async": "^1.0.3"
+  }
+}
