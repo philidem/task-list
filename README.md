@@ -17,17 +17,18 @@ in the config then the current activity will be logged via the given logger.
 ## Usage
 Simple example with minimal configuration:
 ```javascript
-var serviceList = taskList.create([
+var services = taskList.create([
     {
         name: 'service1',
 
         start: function(callback) {
-            task1Started = true;
+            // do something
             callback();
         },
 
+        // "stop" functional is optional
         stop: function(callback) {
-            task1Started = false;
+            // do something
             callback();
         }
     },
@@ -36,18 +37,19 @@ var serviceList = taskList.create([
         name: 'service2',
 
         start: function(callback) {
-            task2Started = true;
+            // do something
             callback();
         },
 
+        // "stop" functional is optional
         stop: function(callback) {
-            task2Started = false;
+            // do something
             callback();
         }
     }
 ]);
 
-serviceList.startAll(function(err) {
+services.startAll(function(err) {
     if (err) {
         // some error occurred
     } else {
@@ -55,7 +57,7 @@ serviceList.startAll(function(err) {
     }
 
     // now stop the services
-    serviceList.stopAll(function(err) {
+    services.stopAll(function(err) {
         if (err) {
             // one or more services failed to stop
         } else {
@@ -67,7 +69,7 @@ serviceList.startAll(function(err) {
 
 An example that provides a `logger`:
 ```javascript
-var serviceList = taskList.create({
+var services = taskList.create({
     logger: {
         info: function(message) {
             console.log('INFO: ' + message);
@@ -91,6 +93,7 @@ var serviceList = taskList.create({
                 callback();
             },
 
+            // "stop" functional is optional
             stop: function(callback) {
                 callback();
             }
@@ -104,6 +107,7 @@ var serviceList = taskList.create({
                 callback();
             },
 
+            // "stop" functional is optional
             stop: function(callback) {
                 callback();
             }
