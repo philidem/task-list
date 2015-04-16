@@ -168,9 +168,73 @@ describe('task-list' , function() {
             expect(err.failures.length).to.equal(1);
 
             expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.ERROR);
-            expect(serviceList.getTaskByName('task2').state).to.equal(undefined);
+            expect(serviceList.getTaskByName('task2').state).to.equal(taskList.TaskState.INITIAL);
 
             done();
+        });
+    });
+
+    it('should support disabling a task', function(done) {
+        var task1Started = null;
+        var task2Started = null;
+
+        var serviceList = taskList.create([
+            {
+                name: 'task1',
+
+                disabled: function() {
+                    return true;
+                },
+
+                start: function(callback) {
+                    task1Started = true;
+                    callback();
+                },
+
+                stop: function(callback) {
+                    task1Started = false;
+                    callback();
+                }
+            },
+
+            {
+                name: 'task2',
+
+                disabled: true,
+
+                start: function(callback) {
+                    task2Started = true;
+                    callback();
+                },
+
+                stop: function(callback) {
+                    task2Started = false;
+                    callback();
+                }
+            }
+        ]);
+
+        expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.INITIAL);
+        expect(serviceList.getTaskByName('task2').state).to.equal(taskList.TaskState.INITIAL);
+
+        serviceList.startAll(function(err) {
+            assert(!err);
+            expect(task1Started).to.equal(null);
+            expect(task2Started).to.equal(null);
+
+            expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.DISABLED);
+            expect(serviceList.getTaskByName('task2').state).to.equal(taskList.TaskState.DISABLED);
+
+            serviceList.stopAll(function(err) {
+                assert(!err);
+                expect(task1Started).to.equal(null);
+                expect(task2Started).to.equal(null);
+
+                expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.DISABLED);
+                expect(serviceList.getTaskByName('task2').state).to.equal(taskList.TaskState.DISABLED);
+
+                done();
+            });
         });
     });
 });

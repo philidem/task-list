@@ -3,9 +3,11 @@ var series = require('raptor-async/series');
 var NOOP = function() {};
 
 var TaskState = exports.TaskState = {
+    INITIAL: {},
     STARTED: {},
     STOPPED: {},
-    ERROR: {}
+    ERROR: {},
+    DISABLED: {}
 };
 
 var TaskType = exports.TaskType = {
@@ -105,6 +107,8 @@ function TaskList(options) {
     for (var i = 0; i < tasks.length; i++) {
         var task = tasks[i];
 
+        task.state = TaskState.INITIAL;
+
         if (task.name) {
             this.taskByNameMap[task.name] = task;
         } else {
@@ -147,12 +151,26 @@ TaskList_prototype.startAll = function(callback) {
     var failures = [];
 
     this.tasks.forEach(function(task, index) {
+        var disabledFunc;
+
         if (task.disabled) {
-            logger.info(task.type.disabledMessage(task));
-            return;
+            if (task.disabled.constructor === Function) {
+                disabledFunc = task.disabled;
+            } else {
+                task.state = TaskState.DISABLED;
+                logger.info(task.type.disabledMessage(task));
+                return;
+            }
         }
 
         work.push(function(callback) {
+
+            if (disabledFunc && disabledFunc()) {
+                task.state = TaskState.DISABLED;
+                logger.info(task.type.disabledMessage(task));
+                return callback();
+            }
+
             logger.info(task.type.startingMessage(task));
             task.start(function(startErr) {
                 if (startErr) {
