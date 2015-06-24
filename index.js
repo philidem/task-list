@@ -148,8 +148,6 @@ TaskList_prototype.startAll = function(callback) {
     var logger = this.logger;
     var work = [];
 
-    var failures = [];
-
     this.tasks.forEach(function(task, index) {
         var disabledFunc;
 
@@ -176,15 +174,9 @@ TaskList_prototype.startAll = function(callback) {
                 if (startErr) {
                     task.state = TaskState.ERROR;
 
-                    var err = new Error(task.type.startErrorMessage(task));
-                    err.cause = startErr;
+                    logger.error(task.type.startErrorMessage(task));
 
-                    failures.push({
-                        task: task,
-                        err: startErr
-                    });
-
-                    callback(err);
+                    callback(startErr);
                 } else {
                     task.state = TaskState.STARTED;
                     logger.success(task.type.startedMessage(task));
@@ -196,7 +188,6 @@ TaskList_prototype.startAll = function(callback) {
 
     series(work, function(err) {
         if (err) {
-            err.failures = failures;
             callback(err);
         } else {
             callback();
