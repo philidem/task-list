@@ -165,7 +165,7 @@ describe('task-list' , function() {
         ]);
 
         serviceList.startAll(function(err) {
-            expect(err.failures.length).to.equal(1);
+            expect(err.message).to.equal('task1 failed');
 
             expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.ERROR);
             expect(serviceList.getTaskByName('task2').state).to.equal(taskList.TaskState.INITIAL);
