@@ -1,6 +1,7 @@
 var series = require('raptor-async/series');
 
 var NOOP = function() {};
+var _Promise = (typeof Promise === 'undefined') ? undefined : Promise;
 
 var TaskState = exports.TaskState = {
     INITIAL: {},
@@ -71,15 +72,11 @@ var TaskType = exports.TaskType = {
     }
 };
 
-function TaskList(options) {
+function TaskList(tasks, options) {
     /* jshint devel:true */
-
-    var tasks;
     var logger;
-    if (Array.isArray(options)) {
-        tasks = options;
-    } else {
-        tasks = options.tasks;
+
+    if (options) {
         logger = options.logger;
     }
 
@@ -88,12 +85,16 @@ function TaskList(options) {
 
     if (logger) {
         if (logger === true) {
-            logger = {};
+            logger = {
+                info: console.log.bind(console),
+                success: console.log.bind(console),
+                error: console.error.bind(console)
+            };
+        } else {
+            logger.info = logger.info || NOOP;
+            logger.success = logger.success || NOOP;
+            logger.error = logger.error || NOOP;
         }
-
-        logger.info = logger.info || console.log.bind(console);
-        logger.success = logger.success || console.log.bind(console);
-        logger.error = logger.error || console.error.bind(console);
     } else {
         logger = {
             info: NOOP,
@@ -127,14 +128,30 @@ function TaskList(options) {
         } else {
             task.type = TaskType.TASK;
         }
+    }
+}
 
-        /*jshint loopfunc: true */
-        ['start', 'stop'].forEach(function(property) {
-            var func = task[property];
-            if (func && (func.length !== 1)) {
-                throw new Error('Task "' + task.name + '" has invalid "' + property + '" function. This function should accept one argument which is callback.');
-            }
-        });
+function _isPromise(obj) {
+    return (obj) && (obj.then) && (typeof obj.then === 'function');
+}
+
+function _invokeTask(task, funcName, callback) {
+    var func = task[funcName];
+    if (func.length === 0) {
+        var result = func.call(task);
+        if (_isPromise(result)) {
+            // task function returned promise so normalize to callback
+            result.then(function() {
+                callback();
+            }).catch(function(err) {
+                callback(err || new Error('Task failed to ' + funcName));
+            });
+        } else {
+            // function is synchronous
+            callback();
+        }
+    } else {
+        func.call(task, callback);
     }
 }
 
@@ -144,9 +161,37 @@ TaskList_prototype.getTaskByName = function(name) {
     return this.taskByNameMap[name];
 };
 
+function _createPromiseAndCallback() {
+    var _resolve;
+    var _reject;
+
+    var promise = new _Promise(function(resolve, reject) {
+        _resolve = resolve;
+        _reject = reject;
+    });
+
+    // create a callback that will resolve/reject the promise
+    var callback = function(err) {
+        if (err) {
+            _reject(err);
+        } else {
+            _resolve();
+        }
+    };
+
+    return [promise, callback];
+}
+
 TaskList_prototype.startAll = function(callback) {
     var logger = this.logger;
     var work = [];
+
+    var promise;
+    if (!callback) {
+        var promiseAndCallback = _createPromiseAndCallback();
+        promise = promiseAndCallback[0];
+        callback = promiseAndCallback[1];
+    }
 
     this.tasks.forEach(function(task, index) {
         var disabledFunc;
@@ -162,7 +207,6 @@ TaskList_prototype.startAll = function(callback) {
         }
 
         work.push(function(callback) {
-
             if (disabledFunc && disabledFunc()) {
                 task.state = TaskState.DISABLED;
                 logger.info(task.type.disabledMessage(task));
@@ -170,7 +214,8 @@ TaskList_prototype.startAll = function(callback) {
             }
 
             logger.info(task.type.startingMessage(task));
-            task.start(function(startErr) {
+
+            _invokeTask(task, 'start', function(startErr) {
                 if (startErr) {
                     task.state = TaskState.ERROR;
 
@@ -184,6 +229,8 @@ TaskList_prototype.startAll = function(callback) {
                 }
             });
         });
+
+        return promise;
     });
 
     series(work, function(err) {
@@ -193,11 +240,20 @@ TaskList_prototype.startAll = function(callback) {
             callback();
         }
     });
+
+    return promise;
 };
 
 TaskList_prototype.stopAll = function(callback) {
     var logger = this.logger;
     var work = [];
+
+    var promise;
+    if (!callback) {
+        var promiseAndCallback = _createPromiseAndCallback();
+        promise = promiseAndCallback[0];
+        callback = promiseAndCallback[1];
+    }
 
     var failures = [];
 
@@ -209,7 +265,7 @@ TaskList_prototype.stopAll = function(callback) {
 
         work.push(function(callback) {
             logger.info(task.type.stoppingMessage(task));
-            task.stop(function(stopErr) {
+            _invokeTask(task, 'stop', function(stopErr) {
                 if (stopErr) {
                     task.state = TaskState.ERROR;
 
@@ -244,8 +300,27 @@ TaskList_prototype.stopAll = function(callback) {
 
         callback();
     });
+
+    return promise;
 };
 
-exports.create = function(options) {
-    return new TaskList(options);
+exports.create = function(tasks, options) {
+    if (arguments.length === 1) {
+        if (Array.isArray(arguments[0])) {
+            // provided an array of tasks
+        } else {
+            // provided a single options object
+            options = arguments[0];
+            tasks = options.tasks;
+            if (!tasks) {
+                throw new Error('"tasks" property is required if calling create with single options argument');
+            }
+        }
+    } else if (arguments.length === 2) {
+        // provided tasks and options as expected
+    } else {
+        throw new Error('Invalid arguments');
+    }
+
+    return new TaskList(tasks, options);
 };

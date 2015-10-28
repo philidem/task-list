@@ -5,6 +5,7 @@
         "it": true
     },
 
+    "esnext": true,
     "strict": false,
     "node" : true,
     "es5" : false,

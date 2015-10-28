@@ -237,4 +237,182 @@ describe('task-list' , function() {
             });
         });
     });
+
+    it('should support synchronous task', function(done) {
+        var task1Started = false;
+
+        var serviceList = taskList.create([
+            {
+                name: 'task1',
+
+                start: function() {
+                    task1Started = true;
+                },
+
+                stop: function() {
+                    task1Started = false;
+                }
+            },
+        ]);
+
+        serviceList.startAll(function(err) {
+            assert(!err);
+            expect(task1Started).to.equal(true);
+
+            serviceList.stopAll(function(err) {
+                assert(!err);
+                expect(task1Started).to.equal(false);
+
+                expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.STOPPED);
+
+                done();
+            });
+        });
+    });
+
+    it('should support tasks that return promise in start/stop function', function(done) {
+        var task1Started = false;
+
+        var serviceList = taskList.create([
+            {
+                name: 'task1',
+
+                start: function() {
+                    return new Promise(function(resolve, reject) {
+                        task1Started = true;
+                        resolve();
+                    });
+                },
+
+                stop: function() {
+                    return new Promise(function(resolve, reject) {
+                        task1Started = false;
+                        resolve();
+                    });
+                }
+            },
+        ]);
+
+        serviceList.startAll(function(err) {
+            assert(!err);
+            expect(task1Started).to.equal(true);
+
+            serviceList.stopAll(function(err) {
+                assert(!err);
+                expect(task1Started).to.equal(false);
+
+                expect(serviceList.getTaskByName('task1').state).to.equal(taskList.TaskState.STOPPED);
+
+                done();
+            });
+        });
+    });
+
+    it('should support promise return value for startAll and stopAll', function(done) {
+        var task1Started = false;
+
+        var serviceList = taskList.create([
+            {
+                name: 'task1',
+
+                start: function() {
+                    return new Promise(function(resolve, reject) {
+                        setTimeout(function() {
+                            task1Started = true;
+                            resolve();
+                        }, 10);
+                    });
+                },
+
+                stop: function() {
+                    return new Promise(function(resolve, reject) {
+                        setTimeout(function() {
+                            task1Started = false;
+                            resolve();
+                        }, 10);
+                    });
+                }
+            }
+        ]);
+
+        serviceList.startAll().then(function() {
+            expect(task1Started).to.equal(true);
+            return serviceList.stopAll();
+        }).then(function() {
+            expect(task1Started).to.equal(false);
+            done();
+        }).catch(function(err) {
+            throw err;
+        });
+    });
+
+    it('should creation with just array of tasks', function(done) {
+        var started = false;
+        taskList.create([
+            {
+                name: 'task1',
+                start: function() {
+                    started = true;
+                }
+            }
+        ]).startAll(function(err) {
+            expect(started).to.equal(true);
+            done();
+        });
+    });
+
+    it('should creation with just array of tasks and options', function(done) {
+        var started = false;
+        var logged = false;
+
+        var options = {
+            logger: {
+                info: function() {
+                    logged = true;
+                }
+            }
+        };
+
+        taskList.create([
+            {
+                name: 'task1',
+                start: function() {
+                    started = true;
+                }
+            }
+        ], options).startAll(function(err) {
+            expect(started).to.equal(true);
+            expect(logged).to.equal(true);
+            done();
+        });
+    });
+
+    it('should creation with just options', function(done) {
+        var started = false;
+        var logged = false;
+
+        var options = {
+            logger: {
+                info: function() {
+                    logged = true;
+                }
+            },
+
+            tasks: [
+                {
+                    name: 'task1',
+                    start: function() {
+                        started = true;
+                    }
+                }
+            ]
+        };
+
+        taskList.create(options).startAll(function(err) {
+            expect(started).to.equal(true);
+            expect(logged).to.equal(true);
+            done();
+        });
+    });
+
 });
