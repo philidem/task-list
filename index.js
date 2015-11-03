@@ -2,6 +2,7 @@ var series = require('raptor-async/series');
 
 var NOOP = function() {};
 var _Promise = (typeof Promise === 'undefined') ? undefined : Promise;
+var nextTick = require('./nextTick');
 
 var TaskState = exports.TaskState = {
     INITIAL: {},
@@ -137,21 +138,28 @@ function _isPromise(obj) {
 
 function _invokeTask(task, funcName, callback) {
     var func = task[funcName];
+    // Invoke task in next tick so that the previous task is not in
+    // the call stack of new task
     if (func.length === 0) {
-        var result = func.call(task);
-        if (_isPromise(result)) {
-            // task function returned promise so normalize to callback
-            result.then(function() {
+        nextTick(function() {
+            var result = func.call(task);
+            if (_isPromise(result)) {
+                // task function returned promise so normalize to callback
+                result.then(function() {
+                    callback();
+                }).catch(function(err) {
+                    callback(err || new Error('Task failed to ' + funcName));
+                });
+            } else {
+                // function is synchronous
                 callback();
-            }).catch(function(err) {
-                callback(err || new Error('Task failed to ' + funcName));
-            });
-        } else {
-            // function is synchronous
-            callback();
-        }
+            }
+        });
     } else {
-        func.call(task, callback);
+
+        nextTick(function() {
+            func.call(task, callback);
+        });
     }
 }
 
@@ -218,15 +226,13 @@ TaskList_prototype.startAll = function(callback) {
             _invokeTask(task, 'start', function(startErr) {
                 if (startErr) {
                     task.state = TaskState.ERROR;
-
                     logger.error(task.type.startErrorMessage(task));
-
-                    callback(startErr);
                 } else {
                     task.state = TaskState.STARTED;
                     logger.success(task.type.startedMessage(task));
-                    callback();
                 }
+
+                callback(startErr);
             });
         });
 
