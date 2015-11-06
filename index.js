@@ -170,24 +170,18 @@ TaskList_prototype.getTaskByName = function(name) {
 };
 
 function _createPromiseAndCallback() {
-    var _resolve;
-    var _reject;
-
-    var promise = new _Promise(function(resolve, reject) {
-        _resolve = resolve;
-        _reject = reject;
-    });
+    var deferred = _Promise.defer();
 
     // create a callback that will resolve/reject the promise
     var callback = function(err) {
         if (err) {
-            _reject(err);
+            deferred.reject(err);
         } else {
-            _resolve();
+            deferred.resolve();
         }
     };
 
-    return [promise, callback];
+    return [deferred.promise, callback];
 }
 
 TaskList_prototype.startAll = function(callback) {
