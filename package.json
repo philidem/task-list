@@ -28,5 +28,5 @@
     "dependencies": {
         "raptor-async": "^1.1.2"
     },
-    "version": "1.0.5"
+    "version": "1.0.6"
 }
