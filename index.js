@@ -1,7 +1,6 @@
 var series = require('raptor-async/series');
 
 var NOOP = function() {};
-var _Promise = (typeof Promise === 'undefined') ? undefined : Promise;
 var nextTick = require('./nextTick');
 
 var TaskState = exports.TaskState = {
@@ -170,18 +169,19 @@ TaskList_prototype.getTaskByName = function(name) {
 };
 
 function _createPromiseAndCallback() {
-    var deferred = _Promise.defer();
+    var callback;
+    var promise = new Promise(function(resolve, reject) {
+        // create a callback that will resolve/reject the promise
+        callback = function(err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        };
+    });
 
-    // create a callback that will resolve/reject the promise
-    var callback = function(err) {
-        if (err) {
-            deferred.reject(err);
-        } else {
-            deferred.resolve();
-        }
-    };
-
-    return [deferred.promise, callback];
+    return [promise, callback];
 }
 
 TaskList_prototype.startAll = function(callback) {
